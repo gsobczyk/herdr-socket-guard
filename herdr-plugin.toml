@@ -1,0 +1,10 @@
+id = "gsobczyk.socket-guard"
+name = "Socket Guard"
+description = "Socket proxy that forwards only allowlisted API methods (agent status reports by default)"
+version = "0.1.0"
+min_herdr_version = "0.9.0"
+platforms = ["linux"]
+
+# setsid -f detaches the proxy from herdr; stdio goes to /dev/null, the log is $HERDR_PLUGIN_STATE_DIR/socket-guard.log
+[[startup]]
+command = ["sh", "-c", "exec setsid -f python3 ./socket-guard.py </dev/null >/dev/null 2>&1"]
