@@ -17,20 +17,29 @@ Point untrusted processes (e.g. sandboxed coding agents) at the guard socket ins
 
 ## Quick start
 
-1. Link the plugin:
+1. Install the plugin from GitHub:
 
    ```bash
-   herdr plugin link /path/to/socket-guard
+   herdr plugin install gsobczyk/herdr-socket-guard
    ```
 
-2. Restart the herdr server. The plugin starts on herdr startup, and `plugin link` doesn't run startup hooks. The guard now listens on `$XDG_RUNTIME_DIR/socket-guard.sock`.
+   Remove it with `herdr plugin uninstall gsobczyk.socket-guard`. To update, uninstall and install again.
+
+   For local development, link a clone instead:
+
+   ```bash
+   git clone https://github.com/gsobczyk/herdr-socket-guard.git
+   herdr plugin link ./herdr-socket-guard
+   ```
+
+2. Restart the herdr server. The plugin starts on herdr startup, and installing or linking doesn't run startup hooks. The guard now listens on `$XDG_RUNTIME_DIR/socket-guard/$HERDR_SESSION/herdr.sock`.
 
 3. Run the agent so it uses the guard socket and can't see the real one. For example, with bubblewrap:
 
    ```bash
    bwrap --dev-bind / / --unshare-pid --proc /proc \
          --tmpfs ~/.config/herdr \
-         --setenv HERDR_SOCKET_PATH "$XDG_RUNTIME_DIR/socket-guard.sock" \
+         --setenv HERDR_SOCKET_PATH "$XDG_RUNTIME_DIR/socket-guard/$HERDR_SESSION/herdr.sock" \
          -- claude
    ```
 
@@ -84,10 +93,12 @@ Each herdr session gets its own guard socket in `$XDG_RUNTIME_DIR` (`/tmp` if un
 
 | herdr socket | Guard socket |
 |---|---|
-| `~/.config/herdr/herdr.sock` | `socket-guard.sock` |
-| `~/.config/herdr/sessions/<name>/herdr.sock` | `socket-guard-<name>.sock` |
+| `~/.config/herdr/herdr.sock` | `socket-guard/herdr.sock` |
+| `~/.config/herdr/sessions/<name>/herdr.sock` | `socket-guard/<name>/herdr.sock` |
 
-The guard socket is created with mode `0600`.
+The session name comes from `HERDR_SESSION`, or from the real socket path when it's unset. Inside a pane, `$XDG_RUNTIME_DIR/socket-guard/$HERDR_SESSION/herdr.sock` points at the guard of the current session. In the default session `HERDR_SESSION` is empty, and `socket-guard//herdr.sock` resolves to the same file.
+
+The guard directories and socket are created with mode `0700` (owner only).
 
 ## Running without herdr
 
@@ -96,3 +107,7 @@ You can run the script by hand, e.g. to test an allowlist:
 ```bash
 HERDR_ALLOWED_METHODS= ./socket-guard.py   # deny all, log to stderr
 ```
+
+## License
+
+MIT, see [LICENSE](LICENSE).

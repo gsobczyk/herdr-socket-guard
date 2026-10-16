@@ -8,11 +8,14 @@ UPSTREAM = ENV.get("HERDR_REAL_SOCKET") or ENV.get("HERDR_SOCKET_PATH") or os.pa
 
 
 def filter_socket_for(upstream):
-    """~/.config/herdr/herdr.sock -> socket-guard.sock, .../sessions/<name>/herdr.sock -> socket-guard-<name>.sock"""
-    session_dir = os.path.dirname(os.path.abspath(upstream))
-    is_named = os.path.basename(os.path.dirname(session_dir)) == "sessions"
-    name = f"socket-guard-{os.path.basename(session_dir)}.sock" if is_named else "socket-guard.sock"
-    return os.path.join(ENV.get("XDG_RUNTIME_DIR", "/tmp"), name)
+    """<runtime>/socket-guard/$HERDR_SESSION/herdr.sock, so panes can build it without ${:+};
+    session from HERDR_SESSION, else from .../sessions/<name>/herdr.sock, default session -> ''"""
+    session = ENV.get("HERDR_SESSION")
+    if not session:
+        session_dir = os.path.dirname(os.path.abspath(upstream))
+        is_named = os.path.basename(os.path.dirname(session_dir)) == "sessions"
+        session = os.path.basename(session_dir) if is_named else ""
+    return os.path.join(ENV.get("XDG_RUNTIME_DIR", "/tmp"), "socket-guard", session, "herdr.sock")
 
 
 LISTEN = ENV.get("HERDR_FILTER_SOCKET") or filter_socket_for(UPSTREAM)
@@ -103,6 +106,7 @@ async def main():
         log.info("%s already running", LISTEN)
         return
     os.umask(0o077)
+    os.makedirs(os.path.dirname(LISTEN), exist_ok=True)
     server = await asyncio.start_unix_server(handle, LISTEN)
     log.info("%s -> %s, allowed: %s", LISTEN, UPSTREAM, sorted(ALLOWED))
     await server.serve_forever()
